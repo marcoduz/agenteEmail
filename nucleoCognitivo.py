@@ -1,0 +1,1 @@
+from nucleoCognitivo import NucleoCognitivo
