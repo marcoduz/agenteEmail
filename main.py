@@ -13,20 +13,24 @@ from dotenv import load_dotenv
 
 sys.path.insert(0, os.path.dirname(__file__))
 # from src.agente import Agente  # noqa: E402
+from src.nucleoCognitivo import NucleoCognitivo
+from src.moduloAcao import ModuloAcao
 
 
 def main():
     load_dotenv()
 
-    api_key = os.getenv("GEMINI_API_KEY")
+    api_key = os.getenv("API_GEMINI")
     model = os.getenv("GEMINI_MODEL", "gemini-3.5-flash")
 
     if not api_key:
-        print("Erro: defina GEMINI_API_KEY no arquivo .env (veja .env.example).")
+        print("Erro: defina API_GEMINI no arquivo .env (veja .env.example).")
         sys.exit(1)
 
     # print("Inicializando agente (autenticação Gmail pode abrir o navegador na 1ª execução)...")
     # agente = Agente(api_key, model, gmail_credentials_path, gmail_token_path)
+    nucleo = NucleoCognitivo(api_key=api_key, model=model)
+    moduloAcao = ModuloAcao()
 
     print("Agente de email pronto. Digite um comando (ou 'sair' para encerrar).\n")
     while True:
@@ -36,7 +40,8 @@ def main():
         if not comando:
             continue
 
-        # resposta = agente.processar_comando(comando)
+        resposta = nucleo.chamadaTerminal(comando)
+        moduloAcao.rodarComandoTerminal(resposta)
         print(f"\n{resposta}\n")
 
 
