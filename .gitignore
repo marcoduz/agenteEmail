@@ -4,3 +4,4 @@ __pycache__/
 testes/
 credentials.json
 token.json
+memoria/
