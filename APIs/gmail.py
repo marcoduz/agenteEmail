@@ -17,6 +17,7 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 
 SCOPES = ["https://www.googleapis.com/auth/gmail.modify"]
+PASTA_ANEXOS_TEMP = "memoria/anexosTemp"
 
 
 def autenticar(credentialsPath="credentials.json", tokenPath="token.json"):
@@ -103,36 +104,35 @@ def _resumirMensagens(service, mensagens):
         })
     return resumo
 
+def _coletarAnexosRecursivo(parte, anexos):
+    nomeArquivo = parte.get("filename", "")
+    attachmentId = parte.get("body", {}).get("attachmentId")
+    if nomeArquivo and attachmentId:
+        anexos.append({
+            "nome": nomeArquivo,
+            "mimeType": parte.get("mimeType", "?"),
+            "tamanho": parte.get("body", {}).get("size", 0),
+            "attachmentId": attachmentId,
+        })
+    for subParte in parte.get("parts", []):
+        _coletarAnexosRecursivo(subParte, anexos)
+ 
+ 
+def _listarAnexos(payload):
+    anexos = []
+    _coletarAnexosRecursivo(payload, anexos)
+    return anexos
+
 
 # ----------------------------------------------------------------------
 # Leitura
 # ----------------------------------------------------------------------
 
-def listarEmailsNaoLidos(service, maxResultados=10):
-    resultado = (
-        service.users()
-        .messages()
-        .list(userId="me", labelIds=["INBOX", "UNREAD"], maxResults=maxResultados)
-        .execute()
-    )
-    return _resumirMensagens(service, resultado.get("messages", []))
-
-
-def lerEmail(service, emailId):
-    msg = service.users().messages().get(userId="me", id=emailId, format="full").execute()
-    headers = {h["name"]: h["value"] for h in msg["payload"]["headers"]}
-    corpo = _extrairCorpo(msg["payload"])
-    return {
-        "id": emailId,
-        "remetente": headers.get("From", "desconhecido"),
-        "assunto": headers.get("Subject", "(sem assunto)"),
-        "corpo": corpo,
-    }
-
-
 def buscarEmails(service, consulta, maxResultados=10):
-    """Busca usando a sintaxe de pesquisa do próprio Gmail
-    (ex: 'assunto', 'from:pessoa@exemplo.com', 'is:unread', etc)."""
+    """Busca usando a sintaxe de pesquisa do próprio Gmail. Cobre qualquer
+    caso de listagem/filtro: não lidos ('is:unread'), por remetente
+    ('from:pessoa@exemplo.com'), por assunto ('subject:...'), combinações
+    ('is:unread from:pessoa@exemplo.com'), etc."""
     resultado = (
         service.users()
         .messages()
@@ -142,15 +142,67 @@ def buscarEmails(service, consulta, maxResultados=10):
     return _resumirMensagens(service, resultado.get("messages", []))
 
 
-def buscarEmailPorRemetente(service, remetente, maxResultados=10):
-    return buscarEmails(service, f"from:{remetente}", maxResultados)
+def lerEmail(service, emailId):
+    """Busca todas as informações de um email especifico utilizando do seu ID"""
+    msg = service.users().messages().get(userId="me", id=emailId, format="full").execute()
+    headers = {h["name"]: h["value"] for h in msg["payload"]["headers"]}
+    corpo = _extrairCorpo(msg["payload"])
+    anexos = _listarAnexos(msg["payload"])
+    return {
+        "id": emailId,
+        "remetente": headers.get("From", "desconhecido"),
+        "assunto": headers.get("Subject", "(sem assunto)"),
+        "corpo": corpo,
+        "anexos": anexos,
+    }
 
-
+def baixarAnexo(service, emailId, attachmentId, nomeArquivo, pasta=PASTA_ANEXOS_TEMP):
+    """Baixa um anexo (identificado pelo attachmentId retornado em lerEmail)
+    para uma pasta de staging TEMPORÁRIA (por padrão, dentro de memoria/).
+    Retorna o caminho ABSOLUTO do arquivo salvo — assim o agente pode usar
+    esse caminho em um comandoTerminal (mv/cp) para organizar o arquivo em
+    outro lugar, independente de qual seja o diretório de trabalho do
+    terminal."""
+    anexo = (
+        service.users()
+        .messages()
+        .attachments()
+        .get(userId="me", messageId=emailId, id=attachmentId)
+        .execute()
+    )
+    dados = base64.urlsafe_b64decode(anexo["data"])
+ 
+    # os.path.basename evita path traversal caso o nome do arquivo (que vem
+    # de fora, controlado por quem enviou o email) contenha algo como
+    # "../../etc/passwd".
+    nomeSeguro = os.path.basename(nomeArquivo)
+    os.makedirs(pasta, exist_ok=True)
+    caminho = os.path.abspath(os.path.join(pasta, nomeSeguro))
+ 
+    with open(caminho, "wb") as f:
+        f.write(dados)
+ 
+    return {"status": "salvo", "caminho": caminho, "tamanho": len(dados)}
 # ----------------------------------------------------------------------
 # Escrita / ação
 # ----------------------------------------------------------------------
 
-def enviarEmail(service, destinatario, assunto, corpo):
+def enviarEmail(service, corpo, destinatario=None, assunto=None, emailId=None):
+    """Envia um email. Dois modos de uso:
+      - Email novo: informe destinatario e assunto.
+      - Resposta: informe emailId (o remetente e o assunto 'Re: ...' são
+        derivados automaticamente do email original; destinatario/assunto
+        passados junto são ignorados nesse modo)."""
+    if emailId:
+        original = lerEmail(service, emailId)
+        destinatario = original["remetente"]
+        assunto = original["assunto"]
+        if not assunto.lower().startswith("re:"):
+            assunto = f"Re: {assunto}"
+
+    if not destinatario or not assunto:
+        raise ValueError("informe destinatario+assunto, ou emailId para responder a um email existente")
+
     mensagem = MIMEText(corpo)
     mensagem["to"] = destinatario
     mensagem["subject"] = assunto
@@ -158,29 +210,30 @@ def enviarEmail(service, destinatario, assunto, corpo):
     enviado = service.users().messages().send(userId="me", body={"raw": raw}).execute()
     return {"status": "enviado", "id": enviado["id"]}
 
-
-def responderEmail(service, emailId, corpo):
-    original = lerEmail(service, emailId)
-    destinatario = original["remetente"]
-    assunto = original["assunto"]
-    if not assunto.lower().startswith("re:"):
-        assunto = f"Re: {assunto}"
-    return enviarEmail(service, destinatario, assunto, corpo)
-
-
-def marcarComoLido(service, emailId):
-    service.users().messages().modify(
-        userId="me", id=emailId, body={"removeLabelIds": ["UNREAD"]}
-    ).execute()
-    return {"status": "marcado_como_lido", "id": emailId}
-
-
-def arquivarEmail(service, emailId):
-    service.users().messages().modify(
-        userId="me", id=emailId, body={"removeLabelIds": ["INBOX"]}
-    ).execute()
-    return {"status": "arquivado", "id": emailId}
-
+def gerenciarLabels(service, emailId, adicionar=None, remover=None):
+    """Adiciona e/ou remove labels de um email — operação genérica que cobre
+    marcar como lido/não lido, arquivar, favoritar, marcar como importante,
+    mover para spam, etc, dependendo de quais labels são passadas.
+ 
+    Labels de sistema mais comuns: UNREAD, INBOX, STARRED, IMPORTANT, SPAM.
+    Ex: marcar como lido = remover=["UNREAD"]; arquivar = remover=["INBOX"];
+        favoritar = adicionar=["STARRED"]."""
+    body = {}
+    if adicionar:
+        body["addLabelIds"] = adicionar
+    if remover:
+        body["removeLabelIds"] = remover
+ 
+    if not body:
+        raise ValueError("informe 'adicionar' e/ou 'remover' com pelo menos uma label")
+ 
+    service.users().messages().modify(userId="me", id=emailId, body=body).execute()
+    return {
+        "status": "atualizado",
+        "id": emailId,
+        "labelsAdicionadas": adicionar or [],
+        "labelsRemovidas": remover or [],
+    }
 
 def deletarEmail(service, emailId):
     service.users().messages().trash(userId="me", id=emailId).execute()

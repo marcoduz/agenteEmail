@@ -28,33 +28,23 @@ class ModuloFerramentas:
     # Leitura
     # ------------------------------------------------------------------
 
-    def listarEmailsNaoLidos(self, maxResultados=10):
-        return gmail.listarEmailsNaoLidos(self.service, maxResultados)
+    def buscarEmails(self, consulta, maxResultados=10):
+        return gmail.buscarEmails(self.service, consulta, maxResultados)
 
     def lerEmail(self, emailId):
         return gmail.lerEmail(self.service, emailId)
 
-    def buscarEmails(self, consulta, maxResultados=10):
-        return gmail.buscarEmails(self.service, consulta, maxResultados)
-
-    def buscarEmailPorRemetente(self, remetente, maxResultados=10):
-        return gmail.buscarEmailPorRemetente(self.service, remetente, maxResultados)
-
+    def baixarAnexo(self, emailId, attachmentId, nomeArquivo):
+        return gmail.baixarAnexo(self.service, emailId, attachmentId, nomeArquivo)
     # ------------------------------------------------------------------
     # Escrita / ação
     # ------------------------------------------------------------------
 
-    def enviarEmail(self, destinatario, assunto, corpo):
-        return gmail.enviarEmail(self.service, destinatario, assunto, corpo)
+    def enviarEmail(self, corpo, destinatario=None, assunto=None, emailId=None):
+        return gmail.enviarEmail(self.service, corpo, destinatario, assunto, emailId)
 
-    def responderEmail(self, emailId, corpo):
-        return gmail.responderEmail(self.service, emailId, corpo)
-
-    def marcarComoLido(self, emailId):
-        return gmail.marcarComoLido(self.service, emailId)
-
-    def arquivarEmail(self, emailId):
-        return gmail.arquivarEmail(self.service, emailId)
+    def gerenciarLabels(self, emailId, adicionar=None, remover=None):
+        return gmail.gerenciarLabels(self.service, emailId, adicionar, remover)
 
     def deletarEmail(self, emailId):
         return gmail.deletarEmail(self.service, emailId)
