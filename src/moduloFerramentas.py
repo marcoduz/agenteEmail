@@ -15,6 +15,7 @@ import os
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "APIs"))
 import gmail
+import gerenciadorArquivos
 
 
 class ModuloFerramentas:
@@ -48,3 +49,22 @@ class ModuloFerramentas:
 
     def deletarEmail(self, emailId):
         return gmail.deletarEmail(self.service, emailId)
+
+    # ------------------------------------------------------------------
+    # Arquivos locais
+    # ------------------------------------------------------------------
+ 
+    def listarArquivos(self, pasta="."):
+        return gerenciadorArquivos.listarArquivos(pasta)
+ 
+    def lerArquivo(self, caminho):
+        return gerenciadorArquivos.lerArquivo(caminho)
+ 
+    def criarArquivo(self, caminho, conteudo):
+        return gerenciadorArquivos.criarArquivo(caminho, conteudo)
+ 
+    def moverArquivo(self, origem, destino):
+        return gerenciadorArquivos.moverArquivo(origem, destino)
+ 
+    def deletarArquivo(self, caminho):
+        return gerenciadorArquivos.deletarArquivo(caminho)

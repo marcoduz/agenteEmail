@@ -88,8 +88,16 @@ Crie um arquivo `.env` na raiz do projeto, seguindo o modelo da `.env.example`:
 
 Sempre com o venv ativado (`source .venv/bin/activate`):
 
+### Utilização Normal
+
 ```bash
 python3 main.py
+```
+
+### Bateria de testest
+
+```bash
+python3 main.py --teste
 ```
 
 Na primeira execução o processo de login OAuth vai imprimir uma URL no terminal. 
@@ -106,7 +114,5 @@ próximos logins são automáticos.
 
 ## Próximos passos
 
-- [ ] Integrar Núcleo Cognitivo + Módulo de Ação + Módulo de Ferramentas no `main.py`
-- [ ] Adicionar interface de arquivos locais
 - [ ] Implementar Action-Selector
 - [ ] Implementar Plan-Then-Execute

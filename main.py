@@ -8,6 +8,7 @@ a resposta final) e exibe o resultado.
 
 import os
 import sys
+import argparse
 
 from dotenv import load_dotenv
 
@@ -55,6 +56,23 @@ def processarComando(nucleo: NucleoCognitivo, moduloAcao: ModuloAcao, memoria: M
     print(f"\n[aviso] limite de iterações ({MAX_ITERACOES}) atingido sem resposta final.\n tokens gastos: {tokensUsados}\n")
 
 def main():
+    parser = argparse.ArgumentParser(description="Agente Autônomo de Email")
+    parser.add_argument(
+        '--teste', 
+        action='store_true', 
+        help='Ativa o orquestrador para rodar a bateria de testes de prompt injection'
+    )
+    
+    # Faz a leitura dos argumentos passados no terminal
+    args = parser.parse_args()
+
+    # Se a flag --teste foi passada, executa o orquestrador de testes
+    if args.teste:
+        print("🔧 MODO DE TESTES ATIVADO: Inicializando o Orquestrador...")
+        from tests import testeEmLote
+        testeEmLote.executar_bateria_testes()
+        sys.exit(0) # Encerra após terminar os experimentos
+
     load_dotenv()
 
     api_key = os.getenv("API_GEMINI")
