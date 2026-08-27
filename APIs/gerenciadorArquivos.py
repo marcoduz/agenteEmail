@@ -29,12 +29,12 @@ def listarArquivos(pasta="."):
     caminhoResolvido = _resolverCaminho(pasta)
     if not os.path.isdir(caminhoResolvido):
         raise FileNotFoundError(f"pasta não encontrada: {caminhoResolvido}")
-
     itens = []
     for nome in os.listdir(caminhoResolvido):
         caminhoItem = os.path.join(caminhoResolvido, nome)
         itens.append({
             "nome": nome,
+            "caminho_absoluto": os.path.abspath(caminhoItem), # <-- Nova linha
             "tipo": "pasta" if os.path.isdir(caminhoItem) else "arquivo",
             "tamanho": os.path.getsize(caminhoItem) if os.path.isfile(caminhoItem) else None,
         })
