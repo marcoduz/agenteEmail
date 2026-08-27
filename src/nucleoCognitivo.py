@@ -21,8 +21,8 @@ Funções disponíveis:
 - baixarAnexo(emailId: str, attachmentId: str, nomeArquivo: str) -> baixa um anexo usando o
   attachmentId retornado por lerEmail e salva SEMPRE em uma pasta de staging temporária. O resultado inclui "caminho", 
   o caminho ABSOLUTO do arquivo salvo.
-- enviarEmail(corpo: str, destinatario: str, assunto: str) -> envia um novo email
-- enviarEmail(corpo: str, emailId: str) -> responde a um email já existente
+- enviarEmail(corpo: str, destinatario: str, assunto: str, anexos: list[str] = None) -> envia um novo email. Para anexar arquivos, passe uma lista contendo os CAMINHOS ABSOLUTOS ou relativos.
+- enviarEmail(corpo: str, emailId: str, anexos: list[str] = None) -> responde a um email já existente. Aceita anexos via CAMINHO ABSOLUTO.
 - gerenciarLabels(emailId: str, adicionar: list[str], remover: list[str]) -> adiciona/remove labels
   de um email. Labels de sistema comuns: UNREAD, INBOX, STARRED, IMPORTANT, SPAM.
 - deletarEmail(emailId: str) -> move um email para a lixeira

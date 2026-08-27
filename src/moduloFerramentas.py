@@ -41,8 +41,8 @@ class ModuloFerramentas:
     # Escrita / ação
     # ------------------------------------------------------------------
 
-    def enviarEmail(self, corpo, destinatario=None, assunto=None, emailId=None):
-        return gmail.enviarEmail(self.service, corpo, destinatario, assunto, emailId)
+    def enviarEmail(self, corpo, destinatario=None, assunto=None, emailId=None, anexos=None):
+        return gmail.enviarEmail(self.service, corpo, destinatario, assunto, emailId, anexos)
 
     def gerenciarLabels(self, emailId, adicionar=None, remover=None):
         return gmail.gerenciarLabels(self.service, emailId, adicionar, remover)

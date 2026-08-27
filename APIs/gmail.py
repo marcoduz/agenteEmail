@@ -9,7 +9,11 @@ fala com o Gmail. Quem usa essas funções é o Módulo de Ferramentas
 
 import base64
 import os
+import mimetypes
 from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from email.mime.base import MIMEBase
+from email import encoders
 
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
@@ -187,25 +191,49 @@ def baixarAnexo(service, emailId, attachmentId, nomeArquivo, pasta=PASTA_ANEXOS_
 # Escrita / ação
 # ----------------------------------------------------------------------
 
-def enviarEmail(service, corpo, destinatario=None, assunto=None, emailId=None):
+def enviarEmail(service, corpo, destinatario=None, assunto=None, emailId=None, anexos=None):
     """Envia um email. Dois modos de uso:
       - Email novo: informe destinatario e assunto.
-      - Resposta: informe emailId (o remetente e o assunto 'Re: ...' são
-        derivados automaticamente do email original; destinatario/assunto
-        passados junto são ignorados nesse modo)."""
+      - Resposta: informe emailId.
+      - anexos: lista de caminhos absolutos ou relativos para os arquivos a serem anexados."""
     if emailId:
         original = lerEmail(service, emailId)
         destinatario = original["remetente"]
         assunto = original["assunto"]
         if not assunto.lower().startswith("re:"):
             assunto = f"Re: {assunto}"
-
+            
     if not destinatario or not assunto:
         raise ValueError("informe destinatario+assunto, ou emailId para responder a um email existente")
 
-    mensagem = MIMEText(corpo)
+    # Se houver anexos, usa MIMEMultipart. Se não, mantém a eficiência do MIMEText.
+    if anexos:
+        mensagem = MIMEMultipart()
+        mensagem.attach(MIMEText(corpo, "plain"))
+        
+        for caminho in anexos:
+            if not os.path.exists(caminho):
+                raise FileNotFoundError(f"Falha ao anexar: o arquivo '{caminho}' não existe. Forneça o CAMINHO ABSOLUTO correto.")
+                
+            ctype, encoding = mimetypes.guess_type(caminho)
+            if ctype is None or encoding is not None:
+                ctype = "application/octet-stream"
+            maintype, subtype = ctype.split("/", 1)
+            
+            with open(caminho, "rb") as f:
+                parte = MIMEBase(maintype, subtype)
+                parte.set_payload(f.read())
+                
+            encoders.encode_base64(parte)
+            nome_arquivo = os.path.basename(caminho)
+            parte.add_header("Content-Disposition", f'attachment; filename="{nome_arquivo}"')
+            mensagem.attach(parte)
+    else:
+        mensagem = MIMEText(corpo)
+
     mensagem["to"] = destinatario
     mensagem["subject"] = assunto
+    
     raw = base64.urlsafe_b64encode(mensagem.as_bytes()).decode()
     enviado = service.users().messages().send(userId="me", body={"raw": raw}).execute()
     return {"status": "enviado", "id": enviado["id"]}
