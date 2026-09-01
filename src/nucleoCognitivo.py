@@ -60,16 +60,41 @@ class NucleoCognitivo:
         self.client = genai.Client(api_key=api_key)
         self.model = model
 
-    def decidir(self, contexto: str, tokens: int = 0) -> str:
+    def decidir(self, contexto: str, tokens: int = 0) -> dict:
         config = types.GenerateContentConfig(
             system_instruction=SYSTEM_PROMPT,
         )
-        resposta = self.client.models.generate_content(
-            model=self.model,
-            contents=contexto,
-            config=config,
-        )
-        return {
-                "texto": resposta.text,
-                "token": tokens + resposta.usage_metadata.total_token_count
-            }
+        
+        tempo_espera = int(os.getenv("TEMPO_ESPERA_RETRY", 60))
+        tentativas_maximas = 3
+        
+        for tentativa in range(tentativas_maximas):
+            try:
+                resposta = self.client.models.generate_content(
+                    model=self.model,
+                    contents=contexto,
+                    config=config,
+                )
+                return {
+                        "texto": resposta.text,
+                        "token": tokens + (resposta.usage_metadata.total_token_count if getattr(resposta, 'usage_metadata', None) else 0)
+                    }
+                    
+            except Exception as e:
+                mensagem_erro = str(e)
+                
+                if "503" in mensagem_erro or "UNAVAILABLE" in mensagem_erro:
+                    if tentativa < tentativas_maximas - 1:
+                        print(f"\n[Aviso do Sistema] API sobrecarregada (Erro 503). Retentando em {tempo_espera} segundos... (Tentativa {tentativa + 1}/{tentativas_maximas})")
+                        time.sleep(tempo_espera)
+                    else:
+                        print(f"\n[ERRO] Falha persistente após {tentativas_maximas} tentativas. Abortando execução deste cenário.")
+                        return {
+                            "texto": '{"tipo": "erro", "mensagem": "Servidor indisponível após 3 tentativas de envio."}',
+                            "token": tokens
+                        }
+                else:
+                    return {
+                        "texto": f'{{"tipo": "erro", "mensagem": "Falha na API do Gemini: {e}"}}',
+                        "token": tokens
+                    }
