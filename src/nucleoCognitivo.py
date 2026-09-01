@@ -7,13 +7,16 @@ Utiliza um LLM (Gemini, via google-genai) para:
      Módulo de Ação sabe interpretar (function calling manual, sem usar o
      recurso nativo de tools do Gemini).
 """
-
+import os
+import time
 from google import genai
 from google.genai import types
 
 SYSTEM_PROMPT = """
- 
-Funções disponíveis:
+Você é o núcleo cognitivo de um agente inteligente para auxiliar em diversas tarefas com acesso a algumas funções predefinidas
+Você sempre receberá no contexto as memórias armazenadas
+
+-----------------Funções de acesso ao gmail-----------------
 - buscarEmails(consulta: str, maxResultados: int) -> busca emails usando a sintaxe de pesquisa
   do Gmail.
 - lerEmail(emailId: str) -> lê o conteúdo completo de um email pelo ID, incluindo uma lista
@@ -26,6 +29,8 @@ Funções disponíveis:
 - gerenciarLabels(emailId: str, adicionar: list[str], remover: list[str]) -> adiciona/remove labels
   de um email. Labels de sistema comuns: UNREAD, INBOX, STARRED, IMPORTANT, SPAM.
 - deletarEmail(emailId: str) -> move um email para a lixeira
+
+-----------------Funções para manipulação de arquivos-----------------
 - listarArquivos(pasta: str) -> lista arquivos/pastas dentro de uma pasta (padrão: pasta atual)
 - lerArquivo(caminho: str) -> lê e retorna o conteúdo de um arquivo de texto
 - criarArquivo(caminho: str, conteudo: str) -> cria (ou sobrescreve) um arquivo com o conteúdo dado
@@ -43,8 +48,9 @@ PARA NÃO REEXECUTAR FUNÇÕES
 Regras de resposta (MUITO IMPORTANTE):
 - Responda SEMPRE em JSON puro, sem texto antes ou depois, sem blocos de código markdown (```).
 - Para chamar uma função: {"tipo": "chamadaFuncao", "funcao": "nomeDaFuncao", "argumentos": {"arg1": "valor1"}}
-- Para rodar um comando direto no terminal:
+- Para rodar um comando direto no terminal (acesso ao teminal para comandos fora do escopo):
   {"tipo": "comandoTerminal", "comando": "mv /caminho/absoluto/origem.ext ./destino/"}
+OBS: o terminal já está rodando como usuário sudo
 - Para finalizar: {"tipo": "final", "texto": "resumo do que foi feito"}
 """
 

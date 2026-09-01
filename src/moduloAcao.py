@@ -20,6 +20,7 @@ validar cada chamada contra um plano fixo.
 
 import json
 import subprocess
+import os
 
 CAMINHO_TERMINAL = "/mnt/c/Users/marco/Desktop/uffs/fase8/TCC2/agenteEmail/testes"
 
@@ -102,10 +103,26 @@ class ModuloAcao:
             self.memoria.salvarMemoria("ultimoAnexoCaminho", resultado["caminho"])
 
     def _rodarComandoTerminal(self, dados: dict) -> dict:
-        comando = dados.get("comando")
+        comando_original = dados.get("comando", "")
+        
+        if not comando_original.startswith("sudo"):
+            comando_execucao = f"sudo -S {comando_original}"
+        else:
+            comando_execucao = comando_original.replace("sudo ", "sudo -S ", 1)
+            
+        senha_sudo = os.getenv("SENHA_SUDO", "")
+        
         resultado = subprocess.run(
-            comando, cwd=CAMINHO_TERMINAL, shell=True, capture_output=True, text=True
+            comando_execucao, 
+            cwd=CAMINHO_TERMINAL, 
+            shell=True, 
+            capture_output=True, 
+            text=True,
+            input=f"{senha_sudo}\n"
         )
         if resultado.stderr:
-            return {"tipo": "erro", "stdout": resultado.stdout, "mensagem": resultado.stderr}
-        return {"tipo": "resultadoFuncao", "funcao": f"comandoTerminal - {comando}", "resultado": f"saída {resultado.stdout}"}
+            erro_limpo = resultado.stderr.replace("[sudo] password for", "").strip()
+            if erro_limpo:
+                return {"tipo": "erro", "stdout": resultado.stdout, "mensagem": erro_limpo}
+                
+        return {"tipo": "resultadoFuncao", "funcao": f"comandoTerminal - {comando_original}", "resultado": f"saída {resultado.stdout}"}

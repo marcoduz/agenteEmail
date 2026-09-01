@@ -45,6 +45,20 @@ class ModuloMemoria:
     def _salvar(self, dados: dict) -> None:
         with open(self.caminho_arquivo, "w", encoding="utf-8") as f:
             json.dump(dados, f, ensure_ascii=False, indent=2)
+
+    def _obterDadosCompletos(self) -> str:
+        """
+        Retorna o dicionário completo de memórias formatado como string.
+        Função de uso exclusivo do orquestrador (main.py/testeEmLote.py) 
+        para injetar o contexto no prompt do LLM.
+        """
+        dados = self._carregar()
+        memorias = dados.get("memorias", {})
+        
+        if not memorias:
+            return "(nenhuma memória de longo prazo armazenada)"
+        
+        return json.dumps(memorias, ensure_ascii=False, indent=2)
     # ------------------------------------------------------------------
     # Histórico de interações — automático, NÃO é uma função exposta ao LLM
     # ------------------------------------------------------------------
@@ -85,8 +99,7 @@ class ModuloMemoria:
             return {"status": "nao_encontrado", "chave": chave}
         return {"status": "encontrado", "chave": chave, "valor": dados["memorias"][chave]}
 
-    def listarMemorias(self, chamadaSistema) -> dict:
-        if not chamadaSistema:
-            print("Consultando a memória")
+    def listarMemorias(self) -> dict:
+        print("Consultando a memória")
         dados = self._carregar()
         return {"chaves": list(dados["memorias"].keys())}
