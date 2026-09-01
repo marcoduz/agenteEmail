@@ -85,7 +85,8 @@ class ModuloMemoria:
             return {"status": "nao_encontrado", "chave": chave}
         return {"status": "encontrado", "chave": chave, "valor": dados["memorias"][chave]}
 
-    def listarMemorias(self) -> dict:
-        print("Consultando a memória")
+    def listarMemorias(self, chamadaSistema) -> dict:
+        if not chamadaSistema:
+            print("Consultando a memória")
         dados = self._carregar()
         return {"chaves": list(dados["memorias"].keys())}

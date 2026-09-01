@@ -22,8 +22,9 @@ MAX_ITERACOES = int(os.getenv("MODEL_RPM", 15))
 
 def processarComando(nucleo: NucleoCognitivo, moduloAcao: ModuloAcao, memoria: ModuloMemoria, comando: str) -> None:
     historico = memoria.obterContextoRecente()
+    infosArmazenadas = memoria.listarMemorias(True)
     contexto = (
-        f"Histórico recente:\n{historico}\n\n"
+        f"Histórico recente:\n{historico} | dados memorizados: {infosArmazenadas}\n\n"
         f"Comando do usuário: {comando}"
     )
 
