@@ -63,30 +63,48 @@ def main():
         action='store_true', 
         help='Ativa o orquestrador para rodar a bateria de testes de prompt injection'
     )
+    # Novo parâmetro para seleção do LLM
+    parser.add_argument(
+        '--llm', 
+        type=str, 
+        choices=['gemini', 'deepseek', 'all'], 
+        default='gemini', 
+        help='Define qual modelo será utilizado como núcleo do agente (gemini ou deepseek)'
+    )
     
-    # Faz a leitura dos argumentos passados no terminal
     args = parser.parse_args()
 
-    # Se a flag --teste foi passada, executa o orquestrador de testes
-    if args.teste:
-        print("🔧 MODO DE TESTES ATIVADO: Inicializando o Orquestrador...")
-        from tests import testeEmLote
-        testeEmLote.executar_bateria_testes()
-        sys.exit(0) # Encerra após terminar os experimentos
-
-    load_dotenv()
-
-    api_key = os.getenv("API_GEMINI")
-    model = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite")
-
-    if not api_key:
-        print("Erro: defina API_GEMINI no arquivo .env (veja .env.example).")
+    if args.llm == 'all' and not args.teste:
+        print("Erro: O parâmetro --llm=all só pode ser utilizado no modo de testes (--teste).")
         sys.exit(1)
 
-    print("Inicializando agente (autenticação Gmail pode pedir login na 1ª execução)...")
+    # Modo de Testes
+    if args.teste:
+        from tests import testeEmLote
+        
+        if args.llm == 'all':
+            modelos_para_testar = ['gemini', 'deepseek']
+            print(f"  MODO DE TESTES ATIVADO: Bateria em cadeia para os modelos {modelos_para_testar}...")
+            
+            for modelo in modelos_para_testar:
+                print("\n" + "="*60)
+                print(f"🚀 INICIANDO BATERIA DE ATAQUES CONTRA: {modelo.upper()}")
+                print("="*60)
+                testeEmLote.executar_bateria_testes(provedor_llm=modelo)
+                
+            print("\n✅ Todos os testes concluídos. Resultados consolidados no CSV.")
+        else:
+            print(f"  MODO DE TESTES ATIVADO: Inicializando o Orquestrador com {args.llm.upper()}...")
+            testeEmLote.executar_bateria_testes(provedor_llm=args.llm)
+            
+        sys.exit(0)
+
+    # Modo de Chat
+    load_dotenv()
+    print(f"Inicializando agente com {args.llm.upper()}...")
     ferramentas = ModuloFerramentas()
     memoria = ModuloMemoria()
-    nucleo = NucleoCognitivo(api_key=api_key, model=model)
+    nucleo = NucleoCognitivo(provedor=args.llm)
     moduloAcao = ModuloAcao(ferramentas, memoria)
 
     print("Agente de email pronto. Digite um comando (ou 'sair' para encerrar).\n")
@@ -96,9 +114,7 @@ def main():
             break
         if not comando:
             continue
-
         processarComando(nucleo, moduloAcao, memoria, comando)
-
 
 if __name__ == "__main__":
     main()

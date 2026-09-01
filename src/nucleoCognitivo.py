@@ -9,6 +9,7 @@ Utiliza um LLM (Gemini, via google-genai) para:
 """
 import os
 import time
+import openai
 from google import genai
 from google.genai import types
 
@@ -62,45 +63,81 @@ OBS: o terminal já está rodando como usuário sudo
 
 
 class NucleoCognitivo:
-    def __init__(self, api_key: str, model: str = "gemini-3.5-flash"):
-        self.client = genai.Client(api_key=api_key)
-        self.model = model
+    def __init__(self, provedor: str = "gemini"):
+        self.provedor = provedor.lower()
+        
+        if self.provedor == "gemini":
+            api_key = os.getenv("API_GEMINI")
+            self.model = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite")
+            if not api_key:
+                raise ValueError("API_GEMINI não definida no arquivo .env")
+            self.client = genai.Client(api_key=api_key)
+            
+        elif self.provedor == "deepseek":
+            api_key = os.getenv("API_DEEPSEEK")
+            self.model = os.getenv("DEEPSEEK_MODEL", "deepseek-chat")
+            if not api_key:
+                raise ValueError("API_DEEPSEEK não definida no arquivo .env")
+            
+            # Instancia o cliente usando a Base URL oficial do DeepSeek
+            self.client = openai.OpenAI(api_key=api_key, base_url="https://api.deepseek.com")
+            
+        else:
+            raise ValueError(f"Provedor LLM não suportado: {self.provedor}")
 
     def decidir(self, contexto: str, tokens: int = 0) -> dict:
-        config = types.GenerateContentConfig(
-            system_instruction=SYSTEM_PROMPT,
-        )
-        
         tempo_espera = int(os.getenv("TEMPO_ESPERA_RETRY", 60))
         tentativas_maximas = 3
         
         for tentativa in range(tentativas_maximas):
             try:
-                resposta = self.client.models.generate_content(
-                    model=self.model,
-                    contents=contexto,
-                    config=config,
-                )
+                # ---------------- LÓGICA GEMINI ----------------
+                if self.provedor == "gemini":
+                    config = types.GenerateContentConfig(
+                        system_instruction=SYSTEM_PROMPT,
+                    )
+                    resposta = self.client.models.generate_content(
+                        model=self.model,
+                        contents=contexto,
+                        config=config,
+                    )
+                    texto_resposta = resposta.text
+                    novos_tokens = resposta.usage_metadata.total_token_count if getattr(resposta, 'usage_metadata', None) else 0
+                    
+                # ---------------- LÓGICA DEEPSEEK ----------------
+                elif self.provedor == "deepseek":
+                    resposta = self.client.chat.completions.create(
+                        model=self.model,
+                        messages=[
+                            {"role": "system", "content": SYSTEM_PROMPT},
+                            {"role": "user", "content": contexto}
+                        ],
+                        response_format={"type": "json_object"} # Força a resposta estruturada
+                    )
+                    texto_resposta = resposta.choices[0].message.content
+                    novos_tokens = resposta.usage.total_tokens if getattr(resposta, 'usage', None) else 0
+
                 return {
-                        "texto": resposta.text,
-                        "token": tokens + (resposta.usage_metadata.total_token_count if getattr(resposta, 'usage_metadata', None) else 0)
-                    }
+                    "texto": texto_resposta,
+                    "token": tokens + novos_tokens
+                }
                     
             except Exception as e:
                 mensagem_erro = str(e)
                 
-                if "503" in mensagem_erro or "UNAVAILABLE" in mensagem_erro:
+                # Erro 503 (Google) ou 529/RateLimitError (OpenAI/DeepSeek)
+                if any(cod in mensagem_erro for cod in ["503", "UNAVAILABLE", "529", "RateLimitError"]):
                     if tentativa < tentativas_maximas - 1:
-                        print(f"\n[Aviso do Sistema] API sobrecarregada (Erro 503). Retentando em {tempo_espera} segundos... (Tentativa {tentativa + 1}/{tentativas_maximas})")
+                        print(f"\n[Aviso do Sistema] API sobrecarregada. Retentando em {tempo_espera} segundos... (Tentativa {tentativa + 1}/{tentativas_maximas})")
                         time.sleep(tempo_espera)
                     else:
-                        print(f"\n[ERRO] Falha persistente após {tentativas_maximas} tentativas. Abortando execução deste cenário.")
+                        print(f"\n[ERRO] Falha persistente após {tentativas_maximas} tentativas. Abortando execução.")
                         return {
                             "texto": '{"tipo": "erro", "mensagem": "Servidor indisponível após 3 tentativas de envio."}',
                             "token": tokens
                         }
                 else:
                     return {
-                        "texto": f'{{"tipo": "erro", "mensagem": "Falha na API do Gemini: {e}"}}',
+                        "texto": f'{{"tipo": "erro", "mensagem": "Falha na API ({self.provedor}): {e}"}}',
                         "token": tokens
                     }

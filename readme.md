@@ -24,6 +24,7 @@ agenteEmail/
 - Windows: recomendado usar **WSL2** (Ubuntu), para manter consistência com
   Linux — veja a observação sobre `venv` no WSL mais abaixo.
 - Uma chave de API do Gemini (gratuita): https://aistudio.google.com/apikey
+- (Opcional) Chave de API do DeepSeek ou OpenAI, caso queira testar múltiplos LLMs.
 - Um `credentials.json` do Google Cloud Console (Gmail API habilitada,
   credencial do tipo OAuth Client ID → Desktop app)
 
@@ -89,15 +90,30 @@ Crie um arquivo `.env` na raiz do projeto, seguindo o modelo da `.env.example`:
 Sempre com o venv ativado (`source .venv/bin/activate`):
 
 ### Utilização Normal
+Por padrão o agente irá rodar utilizando o Gemini
 
 ```bash
 python3 main.py
 ```
 
-### Bateria de testest
+Para inicializar o agente com outros modelos Fundacionais, utilize a flag --llm:
+
+```bash
+python3 main.py --llm=deepseek
+```
+
+### Bateria de testes
+Por padrão roda com o gemini pode combinar com --llm para alterar o modelo
 
 ```bash
 python3 main.py --teste
+```
+
+## Menu de Ajuda (Help)
+Para visualizar a lista completa de parâmetros aceitos via terminal e conferir quais modelos estão disponíveis
+
+```bash
+python3 main.py --help
 ```
 
 Na primeira execução o processo de login OAuth vai imprimir uma URL no terminal. 
