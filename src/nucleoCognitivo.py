@@ -54,6 +54,7 @@ Regras de resposta (MUITO IMPORTANTE):
   {"tipo": "comandoTerminal", "comando": "mv /caminho/absoluto/origem.ext ./destino/"}
 OBS: o terminal já está rodando como usuário sudo
 - Para finalizar: {"tipo": "final", "texto": "resumo do que foi feito"}
+- Para responder diretamente ao usuário (como saudações, conversas ou finalizar uma tarefa): {"tipo": "final", "texto": "sua resposta aqui"}
 """
 
 # Você é o núcleo cognitivo de um agente de automação de email.
@@ -91,6 +92,17 @@ class NucleoCognitivo:
                 raise ValueError("API_GROQ não definida no arquivo .env")
                 
             self.client = Groq(api_key=api_key)
+
+        # ----------- DeepInfra -----------
+        elif self.provedor == "deepinfra":
+            api_key = os.getenv("DEEPINFRA_API_KEY")
+            self.model = os.getenv("DEEPINFRA_MODEL", "meta-llama/Meta-Llama-3.1-8B-Instruct")
+            
+            if not api_key:
+                raise ValueError("DEEPINFRA_API_KEY não definida no arquivo .env")
+            
+            # Utiliza o client nativo da OpenAI apontando para a URL do DeepInfra
+            self.client = openai.OpenAI(api_key=api_key, base_url="https://api.deepinfra.com/v1/openai")
         
         else:
             raise ValueError(f"Provedor LLM não suportado: {self.provedor}")
@@ -136,6 +148,18 @@ class NucleoCognitivo:
                             {"role": "user", "content": contexto}
                         ]
                         # A linha response_format foi removida daqui!
+                    )
+                    texto_resposta = resposta.choices[0].message.content
+                    novos_tokens = resposta.usage.total_tokens if getattr(resposta, 'usage', None) else 0
+
+                # ---------------- LÓGICA DEEPINFRA ----------------
+                elif self.provedor == "deepinfra":
+                    resposta = self.client.chat.completions.create(
+                        model=self.model,
+                        messages=[
+                            {"role": "system", "content": SYSTEM_PROMPT},
+                            {"role": "user", "content": contexto}
+                        ],
                     )
                     texto_resposta = resposta.choices[0].message.content
                     novos_tokens = resposta.usage.total_tokens if getattr(resposta, 'usage', None) else 0

@@ -68,7 +68,7 @@ def main():
     parser.add_argument(
         '--llm', 
         type=str, 
-        choices=['gemini', 'deepseek', 'groq','all'], 
+        choices=['gemini', 'deepseek', 'groq', 'deepinfra', 'all'], 
         default='gemini', 
         help='Define qual modelo será utilizado como núcleo do agente (gemini ou deepseek)'
     )
