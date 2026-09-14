@@ -12,6 +12,7 @@ import time
 import openai
 from google import genai
 from google.genai import types
+from groq import Groq
 
 SYSTEM_PROMPT = """
 Você é o núcleo cognitivo de um agente inteligente para auxiliar em diversas tarefas com acesso a algumas funções predefinidas
@@ -79,9 +80,18 @@ class NucleoCognitivo:
             if not api_key:
                 raise ValueError("API_DEEPSEEK não definida no arquivo .env")
             
-            # Instancia o cliente usando a Base URL oficial do DeepSeek
             self.client = openai.OpenAI(api_key=api_key, base_url="https://api.deepseek.com")
+
+        ## -----------groq usando groq ou hugginface preferencialmento escolhe o groq
+        elif self.provedor == "groq":
+            api_key = os.getenv("API_GROQ")
+            self.model = os.getenv("GROQ_MODEL", "groq/compound-mini")
             
+            if not api_key:
+                raise ValueError("API_GROQ não definida no arquivo .env")
+                
+            self.client = Groq(api_key=api_key)
+        
         else:
             raise ValueError(f"Provedor LLM não suportado: {self.provedor}")
 
@@ -103,7 +113,7 @@ class NucleoCognitivo:
                     )
                     texto_resposta = resposta.text
                     novos_tokens = resposta.usage_metadata.total_token_count if getattr(resposta, 'usage_metadata', None) else 0
-                    
+
                 # ---------------- LÓGICA DEEPSEEK ----------------
                 elif self.provedor == "deepseek":
                     resposta = self.client.chat.completions.create(
@@ -112,7 +122,20 @@ class NucleoCognitivo:
                             {"role": "system", "content": SYSTEM_PROMPT},
                             {"role": "user", "content": contexto}
                         ],
-                        response_format={"type": "json_object"} # Força a resposta estruturada
+                        response_format={"type": "json_object"}
+                    )
+                    texto_resposta = resposta.choices[0].message.content
+                    novos_tokens = resposta.usage.total_tokens if getattr(resposta, 'usage', None) else 0
+
+                # ---------------- LÓGICA groq (GROQ) ----------------
+                elif self.provedor == "groq":
+                    resposta = self.client.chat.completions.create(
+                        model=self.model,
+                        messages=[
+                            {"role": "system", "content": SYSTEM_PROMPT},
+                            {"role": "user", "content": contexto}
+                        ]
+                        # A linha response_format foi removida daqui!
                     )
                     texto_resposta = resposta.choices[0].message.content
                     novos_tokens = resposta.usage.total_tokens if getattr(resposta, 'usage', None) else 0

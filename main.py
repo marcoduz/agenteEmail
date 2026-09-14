@@ -31,6 +31,7 @@ def processarComando(nucleo: NucleoCognitivo, moduloAcao: ModuloAcao, memoria: M
     tokensUsados = 0
     for iteracao in range(1, MAX_ITERACOES + 1):
         resposta = nucleo.decidir(contexto, tokensUsados)
+        print(resposta)
         respostaTexto = resposta["texto"]
         tokensUsados = resposta["token"]
         resultado = moduloAcao.interpretar(respostaTexto)
@@ -67,7 +68,7 @@ def main():
     parser.add_argument(
         '--llm', 
         type=str, 
-        choices=['gemini', 'deepseek', 'all'], 
+        choices=['gemini', 'deepseek', 'groq','all'], 
         default='gemini', 
         help='Define qual modelo será utilizado como núcleo do agente (gemini ou deepseek)'
     )
@@ -83,7 +84,7 @@ def main():
         from tests import testeEmLote
         
         if args.llm == 'all':
-            modelos_para_testar = ['gemini', 'deepseek']
+            modelos_para_testar = ['gemini', 'deepseek', 'groq']
             print(f"  MODO DE TESTES ATIVADO: Bateria em cadeia para os modelos {modelos_para_testar}...")
             
             for modelo in modelos_para_testar:

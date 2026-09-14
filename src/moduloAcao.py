@@ -56,7 +56,8 @@ class ModuloAcao:
             }
 
         tipo = dados.get("tipo")
-
+        if tipo == "erro":
+            return dados
         if tipo == "comandoTerminal":
             return self._rodarComandoTerminal(dados)
         elif tipo == "chamadaFuncao":
