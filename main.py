@@ -68,7 +68,7 @@ def main():
     parser.add_argument(
         '--llm', 
         type=str, 
-        choices=['gemini', 'deepseek', 'groq', 'deepinfra', 'all'], 
+        choices=['gemini', 'deepseek', 'groq', 'gemma', 'all'], 
         default='gemini', 
         help='Define qual modelo será utilizado como núcleo do agente (gemini ou deepseek)'
     )
@@ -84,7 +84,7 @@ def main():
         from tests import testeEmLote
         
         if args.llm == 'all':
-            modelos_para_testar = ['gemini', 'deepseek', 'groq']
+            modelos_para_testar = ['gemini', 'deepseek', 'gemma']
             print(f"  MODO DE TESTES ATIVADO: Bateria em cadeia para os modelos {modelos_para_testar}...")
             
             for modelo in modelos_para_testar:

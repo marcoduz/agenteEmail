@@ -94,9 +94,9 @@ class NucleoCognitivo:
             self.client = Groq(api_key=api_key)
 
         # ----------- DeepInfra -----------
-        elif self.provedor == "deepinfra":
+        elif self.provedor == "gemma":
             api_key = os.getenv("DEEPINFRA_API_KEY")
-            self.model = os.getenv("DEEPINFRA_MODEL", "meta-llama/Meta-Llama-3.1-8B-Instruct")
+            self.model = os.getenv("DEEPINFRA_MODEL_GEMMA", "meta-llama/Meta-Llama-3.1-8B-Instruct")
             
             if not api_key:
                 raise ValueError("DEEPINFRA_API_KEY não definida no arquivo .env")
@@ -153,7 +153,7 @@ class NucleoCognitivo:
                     novos_tokens = resposta.usage.total_tokens if getattr(resposta, 'usage', None) else 0
 
                 # ---------------- LÓGICA DEEPINFRA ----------------
-                elif self.provedor == "deepinfra":
+                elif self.provedor == "gemma":
                     resposta = self.client.chat.completions.create(
                         model=self.model,
                         messages=[
