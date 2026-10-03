@@ -63,7 +63,7 @@ class ModuloMemoria:
     def limpar_tudo(self) -> None:
         """Limpa o arquivo JSON apagando o histórico e as memórias salvas."""
         self._salvar({"historico": [], "memorias": {}})
-        print("  -> [🧹] Memória do agente resetada com sucesso.")
+        print("-> [Sistema]] Memória do agente resetada com sucesso.")
     # ------------------------------------------------------------------
     # Histórico de interações — automático, NÃO é uma função exposta ao LLM
     # ------------------------------------------------------------------
