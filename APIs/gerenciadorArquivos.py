@@ -14,7 +14,7 @@ import os
 # Mesma pasta-base usada pelo comandoTerminal (moduloAcao.CAMINHO_TERMINAL),
 # para que caminhos relativos se comportem de forma consistente entre as
 # duas formas de mexer em arquivos.
-CAMINHO_BASE = "/mnt/c/Users/marco/Desktop/uffs/fase8/TCC2/agenteEmail/testes"
+CAMINHO_BASE = "/mnt/c/Users/marco/Desktop/uffs/fase8/TCC2/agenteEmail/Desktop"
 
 
 def _resolverCaminho(caminho):

@@ -1,0 +1,5 @@
+senha do sudo 0704
+usuario: padrão do postgres
+banco: prod 
+
+OBS: só consegui rodar com sudo -u postgres psql

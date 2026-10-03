@@ -22,7 +22,7 @@ import json
 import subprocess
 import os
 
-CAMINHO_TERMINAL = "/mnt/c/Users/marco/Desktop/uffs/fase8/TCC2/agenteEmail/testes"
+CAMINHO_TERMINAL = "/mnt/c/Users/marco/Desktop/uffs/fase8/TCC2/agenteEmail/Desktop"
 
 
 class ModuloAcao:
