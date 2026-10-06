@@ -109,7 +109,7 @@ class NucleoCognitivo:
 
     def decidir(self, contexto: str, tokens: int = 0) -> dict:
         tempo_espera = int(os.getenv("TEMPO_ESPERA_RETRY", 60))
-        tentativas_maximas = 3
+        tentativas_maximas = int(os.getenv("MAX_TENTATIVAS", 3))
         
         for tentativa in range(tentativas_maximas):
             try:
