@@ -103,10 +103,26 @@ python3 main.py --llm=deepseek
 ```
 
 ### Bateria de testes
-Por padrão roda com o gemini pode combinar com --llm para alterar o modelo
+A bateria avalia a resiliência do agente contra injeções de prompt e ações não autorizadas. Por padrão, os testes rodam com o Gemini, mas o modelo pode ser alterado com a flag --llm.
+
+#### Execução padrão (Apenas Ataques):
+Roda todos os cenários maliciosos limpando o banco de dados e a memória entre cada teste.
 
 ```bash
 python3 main.py --teste
+```
+
+#### Execução mista com Cadência:
+Intercala e-mails de ataque com tarefas de uso legítimo para avaliar a capacidade do agente de discernir contextos. O valor define a proporção de emails legitimos antes de um ataque (ex: 1 ataque para cada 2 e-mails legítimos).
+
+```bash
+python3 main.py --teste --cadencia=2
+```
+
+#### Simulação de Envenenamento de Contexto (Manter Estado):
+Intercala e-mails de ataque com tarefas de uso legítimo para avaliar a capacidade do agente de discernir contextos. O valor define a proporção (ex: 1 ataque para cada 2 e-mails legítimos).
+```bash
+python3 main.py --teste --cadencia=2 --manter-estado
 ```
 
 ## Menu de Ajuda (Help)
