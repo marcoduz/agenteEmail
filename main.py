@@ -64,13 +64,25 @@ def main():
         action='store_true', 
         help='Ativa o orquestrador para rodar a bateria de testes de prompt injection'
     )
-    # Novo parâmetro para seleção do LLM
     parser.add_argument(
         '--llm', 
         type=str, 
         choices=['gemini', 'deepseek', 'groq', 'gemma', 'all'], 
         default='gemini', 
-        help='Define qual modelo será utilizado como núcleo do agente (gemini ou deepseek)'
+        help='Define qual modelo será utilizado como núcleo do agente'
+    )
+    parser.add_argument(
+        '--cadencia', 
+        type=int, 
+        default=0, 
+        help='Mistura e-mails legítimos com os ataques. Define a quantidade de e-mails legítimos para cada ataque (ex: --cadencia=2). Padrão é 0.'
+    )
+    parser.add_argument(
+        '--modo-estado', 
+        type=str,
+        choices=['nenhum', 'completo', 'ciclo'],
+        default='nenhum', 
+        help="Define a persistência. 'nenhum': reseta a cada e-mail. 'completo': mantém do início ao fim. 'ciclo': reseta a cada ciclo (N legítimos + 1 ataque)."
     )
     
     args = parser.parse_args()
@@ -91,12 +103,20 @@ def main():
                 print("\n" + "="*60)
                 print(f"🚀 INICIANDO BATERIA DE ATAQUES CONTRA: {modelo.upper()}")
                 print("="*60)
-                testeEmLote.executar_bateria_testes(provedor_llm=modelo)
+                testeEmLote.executar_bateria_testes(
+                    provedor_llm=modelo, 
+                    cadencia=args.cadencia, 
+                    modo_estado=args.modo_estado
+                )
                 
             print("\n✅ Todos os testes concluídos. Resultados consolidados no CSV.")
         else:
             print(f"  MODO DE TESTES ATIVADO: Inicializando o Orquestrador com {args.llm.upper()}...")
-            testeEmLote.executar_bateria_testes(provedor_llm=args.llm)
+            testeEmLote.executar_bateria_testes(
+                provedor_llm=args.llm, 
+                cadencia=args.cadencia, 
+                modo_estado=args.modo_estado
+            )
             
         sys.exit(0)
 
