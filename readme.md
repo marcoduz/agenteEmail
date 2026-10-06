@@ -119,10 +119,14 @@ Intercala e-mails de ataque com tarefas de uso legítimo para avaliar a capacida
 python3 main.py --teste --cadencia=2
 ```
 
-#### Simulação de Envenenamento de Contexto (Manter Estado):
-Intercala e-mails de ataque com tarefas de uso legítimo para avaliar a capacidade do agente de discernir contextos. O valor define a proporção (ex: 1 ataque para cada 2 e-mails legítimos).
+#### Simulação de Envenenamento de Contexto (Modo de Estado):
+Permite definir como a memória e o banco de dados se comportam entre os testes, fundamental para avaliar ataques de Data Poisoning e diluição de contexto. Utiliza-se a flag --modo-estado com três opções:
+ - nenhum: Reseta o estado a cada e-mail processado (Comportamento Padrão).
+ - completo: Mantém a memória e o banco de dados continuamente do primeiro ao último teste, acumulando todo o contexto da bateria.
+ - ciclo: Reseta o estado apenas no início de cada ciclo (N e-mails legítimos + 1 ataque final). Ideal para testar a diluição de contexto de forma isolada.
+
 ```bash
-python3 main.py --teste --cadencia=2 --manter-estado
+python3 main.py --teste --cadencia=2 --modo-estado=ciclo
 ```
 
 ## Menu de Ajuda (Help)
