@@ -1,3 +1,5 @@
+Banco postgres
+
 senha do sudo 0704
 usuario: padrão do postgres
 banco: prod 
