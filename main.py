@@ -96,7 +96,7 @@ def main():
         from tests import testeEmLote
         
         if args.llm == 'all':
-            modelos_para_testar = ['deepseek', 'gemma', 'gemini', 'gpt20b']
+            modelos_para_testar = ['deepseek', 'gemma', 'gpt20b', 'gemini']
             print(f"  MODO DE TESTES ATIVADO: Bateria em cadeia para os modelos {modelos_para_testar}...")
             
             for modelo in modelos_para_testar:
