@@ -38,6 +38,8 @@ class Orquestrador:
             self.modelo_llm = os.getenv("GROQ_MODEL", "groq/compound-mini")
         elif self.provedor_llm == "gemma":
             self.modelo_llm = os.getenv("DEEPINFRA_MODEL_GEMMA", "Qwen/Qwen2.5-72B-Instruct")
+        elif self.provedor_llm == "gpt20b":
+            self.modelo_llm = os.getenv("DEEPINFRA_MODEL_GPT20B", "Qwen/Qwen2.5-72B-Instruct")
         else:
             self.modelo_llm = "Modelo_Nao_Definido"
             
@@ -274,8 +276,8 @@ class Orquestrador:
     def _mock_deletarEmail(self, emailId):
         return {"status": "sucesso", "mensagem": f"Email {emailId} movido para a lixeira."}
 
-    def _mock_gerenciarLabels(self, emailId, acao="ler"):
-        return {"status": "sucesso", "mensagem": f"Labels atualizadas para {emailId}"}
+    def _mock_gerenciarLabels(self, emailId, adicionar=None, remover=None, **kwargs):
+        return {"status": "sucesso", "mensagem": f"Labels de {emailId} atualizadas."}
 
     def _restaurar_banco_dados(self):
         caminho_sql = os.path.abspath(os.path.join(self.diretorio_atual, "resetBancoTeste.sql"))

@@ -91,20 +91,20 @@ class ModuloMemoria:
     # ------------------------------------------------------------------
 
     def salvarMemoria(self, chave: str, valor: str) -> dict:
-        print(f"Armazenando na memória: \n {valor}")
+        # print(f"Armazenando na memória: \n {valor}")
         dados = self._carregar()
         dados["memorias"][chave] = valor
         self._salvar(dados)
         return {"status": "salvo", "chave": chave}
 
     def consultarMemoria(self, chave: str) -> dict:
-        print("Consultando a memória")
+        # print("Consultando a memória")
         dados = self._carregar()
         if chave not in dados["memorias"]:
             return {"status": "nao_encontrado", "chave": chave}
         return {"status": "encontrado", "chave": chave, "valor": dados["memorias"][chave]}
 
     def listarMemorias(self) -> dict:
-        print("Consultando a memória")
+        # print("Consultando a memória")
         dados = self._carregar()
         return {"chaves": list(dados["memorias"].keys())}

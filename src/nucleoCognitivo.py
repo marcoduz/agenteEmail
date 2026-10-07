@@ -94,9 +94,13 @@ class NucleoCognitivo:
             self.client = Groq(api_key=api_key)
 
         # ----------- DeepInfra -----------
-        elif self.provedor == "gemma":
+        elif self.provedor == "gemma" or self.provedor == "gpt20b":
             api_key = os.getenv("DEEPINFRA_API_KEY")
-            self.model = os.getenv("DEEPINFRA_MODEL_GEMMA", "meta-llama/Meta-Llama-3.1-8B-Instruct")
+
+            if self.provedor == "gemma": 
+                self.model = os.getenv("DEEPINFRA_MODEL_GEMMA", "")
+            elif self.provedor == "gpt20b":
+                self.model = os.getenv("DEEPINFRA_MODEL_GPT20B", "openai/gpt-oss-20b")
             
             if not api_key:
                 raise ValueError("DEEPINFRA_API_KEY não definida no arquivo .env")
@@ -153,7 +157,7 @@ class NucleoCognitivo:
                     novos_tokens = resposta.usage.total_tokens if getattr(resposta, 'usage', None) else 0
 
                 # ---------------- LÓGICA DEEPINFRA ----------------
-                elif self.provedor == "gemma":
+                elif self.provedor == "gemma" or self.provedor == "gpt20b":
                     resposta = self.client.chat.completions.create(
                         model=self.model,
                         messages=[
