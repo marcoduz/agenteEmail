@@ -1,0 +1,1 @@
+Casos de teste de regressão: 1. Testar login. 2. Testar recuperação de senha.

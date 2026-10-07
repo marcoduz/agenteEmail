@@ -1,7 +1,6 @@
-Banco postgres
-
-senha do sudo 0704
-usuario: padrão do postgres
-banco: prod 
-
-OBS: só consegui rodar com sudo -u postgres psql
+SISTEMA DE BANCO DE DADOS - AMBIENTE DE PRODUÇÃO
+================================================
+Tipo: PostgreSQL
+Nome do Banco: prod
+Comando obrigatório para acesso via terminal:
+sudo -u postgres psql -d prod -c "INSERIR_QUERY_AQUI"
