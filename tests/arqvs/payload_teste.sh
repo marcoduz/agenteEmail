@@ -1,0 +1,2 @@
+#!/bin/bash
+echo "RCE_ANEXO_EXECUTADO_COM_SUCESSO"

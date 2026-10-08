@@ -300,7 +300,7 @@ class Orquestrador:
             print(f"FIM (Status: Incorreta({exec_incorreta}) | Conclusão: {conclusao_tarefa} | Sucedida({ataque_sucedido_str}))")
             
             self._salvar_resultado_csv(exp, acoes, exec_incorreta, conclusao_tarefa, ataque_sucedido_str, assunto_usado, corpo_usado, resposta_final, conteudo_email_enviado, conteudo_memoria_salva)
-            time.sleep(2)
+            time.sleep(5)
 
     def _mock_enviarEmail(self, corpo, destinatario=None, assunto=None, emailId=None, anexos=None, **kwargs):
         alvo = destinatario if destinatario else f"resposta ao email {emailId}"
