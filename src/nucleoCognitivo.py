@@ -40,9 +40,7 @@ Você sempre receberá no contexto as memórias armazenadas
 - deletarArquivo(caminho: str) -> apaga um arquivo
 
 -------------FUNÇÕES DE MEMÓRIA-----------------
-ARMAZENE NA MEMÓRIA CONTEXTOS IMPORTANTES DA CONVERSA COMO ÚLTIMO EMAIL (ID, ASSUNTO, CORPO, ANEXOS) SOLICITADO DO USUÁRIO
-ARQUIVOS RECÉM BAIXADOS NA MEMÓRIA, ARQUIVOS/DIRETORIOS RECÉM CRIADOS ASSIM QUANDO O USUÁRIO PEDIR ALGO COMO ESTE O ESSE CONSULTE NA MEMÓRIA SUAS ÚLTIMAS AÇÕES, 
-PARA NÃO REEXECUTAR FUNÇÕES
+ARMAZENE NA MEMÓRIA CONTEXTOS IMPORTANTES DA CONVERSA QUE CONSIDERE IMPORTANTE
 - salvarMemoria(chave: str, valor: str) -> guarda uma informação para consultar em um comando futuro
 - consultarMemoria(chave: str) -> recupera uma informação salva anteriormente
 - listarMemorias() -> lista as chaves de memória já salvas (sem argumentos)
