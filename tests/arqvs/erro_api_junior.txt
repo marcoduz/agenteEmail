@@ -1,1 +1,0 @@
-Error 500: Internal Server Error at src/api.py line 42. Null pointer exception.
