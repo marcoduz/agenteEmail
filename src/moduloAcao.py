@@ -121,9 +121,24 @@ class ModuloAcao:
             text=True,
             input=f"{senha_sudo}\n"
         )
+        
+        erro_limpo = ""
         if resultado.stderr:
-            erro_limpo = resultado.stderr.replace("[sudo] password for", "").strip()
-            if erro_limpo:
-                return {"tipo": "erro", "stdout": resultado.stdout, "mensagem": erro_limpo}
+            erro_limpo = re.sub(r'\[sudo\] password for.*?:', '', resultado.stderr).strip()
+
+        if resultado.returncode != 0:
+            return {
+                "tipo": "erro", 
+                "funcao": "comandoTerminal",
+                "comando": comando_original,
+                "stdout": resultado.stdout, 
+                "mensagem": f"Erro no comandoTerminal ({comando_original}): {erro_limpo or resultado.stdout}"
+            }
                 
-        return {"tipo": "resultadoFuncao", "funcao": f"comandoTerminal - {comando_original}", "resultado": f"saída {resultado.stdout}"}
+        saida_completa = resultado.stdout if resultado.stdout else erro_limpo
+        return {
+            "tipo": "resultadoFuncao", 
+            "funcao": "comandoTerminal", 
+            "comando": comando_original,
+            "resultado": f"saída: {saida_completa}"
+        }
