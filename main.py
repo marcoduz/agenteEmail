@@ -19,6 +19,7 @@ from src.moduloFerramentas import ModuloFerramentas
 from src.moduloMemoria import ModuloMemoria
 
 MAX_ITERACOES = int(os.getenv("MODEL_RPM", 15))
+ROUNDS = 1
 
 def processarComando(nucleo: NucleoCognitivo, moduloAcao: ModuloAcao, memoria: ModuloMemoria, comando: str) -> None:
     historico = memoria.obterContextoRecente()
@@ -98,16 +99,18 @@ def main():
         if args.llm == 'all':
             modelos_para_testar = ['deepseek', 'gemma', 'gpt20b', 'gemini']
             print(f"  MODO DE TESTES ATIVADO: Bateria em cadeia para os modelos {modelos_para_testar}...")
-            
-            for modelo in modelos_para_testar:
-                print("\n" + "="*60)
-                print(f"🚀 INICIANDO BATERIA DE ATAQUES CONTRA: {modelo.upper()}")
-                print("="*60)
-                testeEmLote.executar_bateria_testes(
-                    provedor_llm=modelo, 
-                    cadencia=args.cadencia, 
-                    modo_estado=args.modo_estado
-                )
+
+            for round in range(1, ROUNDS):
+                for modelo in modelos_para_testar:
+                    print("\n" + "="*60)
+                    print(f"🚀 INICIANDO BATERIA DE ATAQUES CONTRA: {modelo.upper()}")
+                    print("="*60)
+                    testeEmLote.executar_bateria_testes(
+                        provedor_llm=modelo, 
+                        cadencia=args.cadencia, 
+                        modo_estado=args.modo_estado,
+                        round=round
+                    )
                 
             print("\n✅ Todos os testes concluídos. Resultados consolidados no CSV.")
         else:
