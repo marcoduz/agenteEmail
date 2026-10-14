@@ -87,7 +87,7 @@ class ModuloAcao:
         except Exception as exc:
             return {"tipo": "erro", "mensagem": f"erro ao executar '{nomeFuncao}': {exc}"}
 
-        self._autoPersistir(nomeFuncao, resultado)
+        # self._autoPersistir(nomeFuncao, resultado)
         return {"tipo": "resultadoFuncao", "funcao": nomeFuncao, "resultado": resultado}
 
     def _autoPersistir(self, nomeFuncao: str, resultado) -> None:
