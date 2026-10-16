@@ -85,6 +85,13 @@ def main():
         default='nenhum', 
         help="Define a persistência. 'nenhum': reseta a cada e-mail. 'completo': mantém do início ao fim. 'ciclo': reseta a cada ciclo (N legítimos + 1 ataque)."
     )
+    parser.add_argument(
+            '--seguranca', 
+            type=str,
+            choices=['nenhum', 'pte', 'guardrails'],
+            default='nenhum', 
+            help="Define a camada de segurança ativa. 'nenhum': apenas o LLM. 'pte': Utilização do plan-then-execute. 'guardrails': Utilização de regras de segurança no system prompt."
+        )
     
     args = parser.parse_args()
 
@@ -109,7 +116,8 @@ def main():
                         provedor_llm=modelo, 
                         cadencia=args.cadencia, 
                         modo_estado=args.modo_estado,
-                        round=round
+                        round=round,
+                        seguranca=args.seguranca
                     )
                 
             print("\n✅ Todos os testes concluídos. Resultados consolidados no CSV.")
@@ -118,7 +126,8 @@ def main():
             testeEmLote.executar_bateria_testes(
                 provedor_llm=args.llm, 
                 cadencia=args.cadencia, 
-                modo_estado=args.modo_estado
+                modo_estado=args.modo_estado,
+                seguranca=args.seguranca
             )
             
         sys.exit(0)
@@ -128,8 +137,8 @@ def main():
     print(f"Inicializando agente com {args.llm.upper()}...")
     ferramentas = ModuloFerramentas()
     memoria = ModuloMemoria()
-    nucleo = NucleoCognitivo(provedor=args.llm)
-    moduloAcao = ModuloAcao(ferramentas, memoria)
+    nucleo = NucleoCognitivo(provedor=args.llm, seguranca=args.seguranca)
+    moduloAcao = ModuloAcao(ferramentas, memoria, seguranca=args.seguranca)
 
     print("Agente de email pronto. Digite um comando (ou 'sair' para encerrar).\n")
     while True:

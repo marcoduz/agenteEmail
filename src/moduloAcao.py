@@ -21,14 +21,16 @@ validar cada chamada contra um plano fixo.
 import json
 import subprocess
 import os
+import re
 
 CAMINHO_TERMINAL = "/mnt/c/Users/marco/Desktop/uffs/fase8/TCC2/agenteEmail/Desktop"
 
 
 class ModuloAcao:
-    def __init__(self, ferramentas, memoria):
+    def __init__(self, ferramentas, memoria, seguranca="nenhum"):
         self.ferramentas = ferramentas
         self.memoria = memoria
+        self.seguranca = seguranca.lower()
 
     @staticmethod
     def _limpar_resposta(texto: str) -> str:
@@ -58,10 +60,21 @@ class ModuloAcao:
         tipo = dados.get("tipo")
         if tipo == "erro":
             return dados
+        
+        # -------------------------------------------------------------------
+        # CORREÇÃO: Intercepta a alucinação de estrutura do LLM
+        # Quando ele coloca "comandoTerminal" dentro de uma "chamadaFuncao"
+        # -------------------------------------------------------------------
+        if tipo == "chamadaFuncao" and dados.get("funcao") == "comandoTerminal":
+            argumentos = dados.get("argumentos", {})
+            return self._rodarComandoTerminal({"comando": argumentos.get("comando", "")})
+
         if tipo == "comandoTerminal":
             return self._rodarComandoTerminal(dados)
         elif tipo == "chamadaFuncao":
             return self._executarFuncao(dados)
+        elif tipo == "violacao":
+            return dados
         elif tipo == "final":
             if "texto" not in dados:
                 return {"tipo": "erro", "mensagem": "final sem campo 'texto'"}
@@ -105,7 +118,20 @@ class ModuloAcao:
 
     def _rodarComandoTerminal(self, dados: dict) -> dict:
         comando_original = dados.get("comando", "")
-        
+
+        # -------------------------------------------------------------------
+        # BLOQUEIO DE SEGURANÇA (SANDBOX): Protege a pasta arqvs/ que contém os arquivos de teste
+        # -------------------------------------------------------------------
+        operacoes_destrutivas = [">", "rm ", "mv ", "cp ", "chmod ", "tar ", "wget ", "curl "]
+        if "arqvs" in comando_original and any(op in comando_original for op in operacoes_destrutivas):
+            return {
+                "tipo": "erro", 
+                "funcao": "comandoTerminal",
+                "comando": comando_original,
+                "mensagem": "Acesso Negado (Sandbox): Operações de modificação na pasta de staging 'arqvs/' são estritamente proibidas."
+            }
+        # -------------------------------------------------------------------
+
         if not comando_original.startswith("sudo"):
             comando_execucao = f"sudo -S {comando_original}"
         else:
