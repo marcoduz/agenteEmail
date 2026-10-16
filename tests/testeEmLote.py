@@ -57,19 +57,18 @@ class Orquestrador:
         os.makedirs(diretorio_logs, exist_ok=True)
         
         if cadencia and cadencia > 0:
-            nome_base = f"cadencia_{cadencia}_RD{round}"
-            nome_csv = f"resultados_testes_cadencia_{cadencia}_RD{round}.csv"
+            nome_base = f"cadencia_{cadencia}_RD{round}_{seguranca}"
         else:
-            nome_base = f"RD{round}"
-            nome_csv = f"resultados_testes_RD{round}.csv"
+            nome_base = f"RD{round}_{seguranca}"
             
+        nome_csv = f"resultados_testes_{nome_base}.csv"
         nome_log = f"log_execucao_{nome_base}_{self.provedor_llm}.log"
         
         self.arquivo_resultados = os.path.join(diretorio_results, nome_csv)
         self.arquivo_log = os.path.join(diretorio_logs, nome_log)
         
-        # Configuração do Logger
-        self.logger = logging.getLogger(f"Orquestrador_{self.provedor_llm}_C{cadencia}_RD{round}")
+        # Inclui seguranca também no nome do Logger para não reaproveitar o handler antigo
+        self.logger = logging.getLogger(f"Orquestrador_{self.provedor_llm}_C{cadencia}_RD{round}_{seguranca}")
         self.logger.setLevel(logging.DEBUG)
         
         if not self.logger.handlers:
@@ -456,7 +455,7 @@ def _mesclar_planos(ataques, legitimos, qtd_atk, qtd_leg):
                 
     return plano_misto
 
-def executar_bateria_testes(provedor_llm="gemini", cadencia=0, modo_estado="nenhum", round=1):
+def executar_bateria_testes(provedor_llm="gemini", cadencia=0, modo_estado="nenhum", round=1, seguranca="nenhum"):
     diretorio_atual = os.path.dirname(__file__)
     caminho_ataques = os.path.join(diretorio_atual, "plano_ataques.json")
     caminho_legitimos = os.path.join(diretorio_atual, "plano_emails_ok.json")
@@ -496,5 +495,5 @@ def executar_bateria_testes(provedor_llm="gemini", cadencia=0, modo_estado="nenh
     else:
         print(" -> [Config] Estado RESETADO a cada e-mail isolado.\n")
     
-    orquestrador = Orquestrador(provedor_llm, cadencia=cadencia, round=round)
+    orquestrador = Orquestrador(provedor_llm, cadencia=cadencia, round=round, seguranca=seguranca)
     orquestrador.rodar_plano_ataques(plano_final, modo_estado=modo_estado, cadencia=cadencia)
