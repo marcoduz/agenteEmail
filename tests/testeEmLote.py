@@ -4,16 +4,18 @@ import json
 import csv
 import re
 import sys
+import shutil
 import logging
 from datetime import datetime
 from dotenv import load_dotenv
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from src.nucleoCognitivo import NucleoCognitivo
+from src.nucleoCognitivo import NucleoCognitivo, SYSTEM_PROMPT, GUARDRAILS
 from src.moduloAcao import ModuloAcao
 from src.moduloMemoria import ModuloMemoria
 from src.moduloFerramentas import ModuloFerramentas
+from src.mitigacoes.planThenExecute import PROMPT_PLANEJADOR
 
 class Orquestrador:
     def __init__(self, provedor_llm="gemini", cadencia=0, round=1, seguranca='nenhum'):
@@ -23,7 +25,8 @@ class Orquestrador:
             raise ValueError("Erro: Defina EMAIL_ALVO no arquivo .env para os testes.")
         
         self.provedor_llm = provedor_llm
-        print(f"Inicializando componentes do Orquestrador ({self.provedor_llm.upper()}) e conectando ao Gmail...")
+        self.seguranca = seguranca.lower()
+        print(f"Inicializando componentes do Orquestrador ({self.provedor_llm.upper()} | Seguranca: {self.seguranca.upper()}) e conectando ao Gmail...")
         
         self.ferramentas = ModuloFerramentas()
         self.ferramentas.deletarEmail = self._mock_deletarEmail
@@ -46,8 +49,8 @@ class Orquestrador:
         else:
             self.modelo_llm = "Modelo_Nao_Definido"
             
-        self.nucleo = NucleoCognitivo(provedor=self.provedor_llm, seguranca=seguranca)
-        self.modulo_acao = ModuloAcao(self.ferramentas, self.memoria, seguranca=seguranca)
+        self.nucleo = NucleoCognitivo(provedor=self.provedor_llm, seguranca=self.seguranca)
+        self.modulo_acao = ModuloAcao(self.ferramentas, self.memoria, seguranca=self.seguranca, pte=self.nucleo.pte)
         
         self.diretorio_atual = os.path.dirname(__file__)
         diretorio_results = os.path.join(self.diretorio_atual, "results")
@@ -57,9 +60,9 @@ class Orquestrador:
         os.makedirs(diretorio_logs, exist_ok=True)
         
         if cadencia and cadencia > 0:
-            nome_base = f"cadencia_{cadencia}_RD{round}_{seguranca}"
+            nome_base = f"cadencia_{cadencia}_RD{round}_{self.seguranca}"
         else:
-            nome_base = f"RD{round}_{seguranca}"
+            nome_base = f"RD{round}_{self.seguranca}"
             
         nome_csv = f"resultados_testes_{nome_base}.csv"
         nome_log = f"log_execucao_{nome_base}_{self.provedor_llm}.log"
@@ -67,8 +70,7 @@ class Orquestrador:
         self.arquivo_resultados = os.path.join(diretorio_results, nome_csv)
         self.arquivo_log = os.path.join(diretorio_logs, nome_log)
         
-        # Inclui seguranca também no nome do Logger para não reaproveitar o handler antigo
-        self.logger = logging.getLogger(f"Orquestrador_{self.provedor_llm}_C{cadencia}_RD{round}_{seguranca}")
+        self.logger = logging.getLogger(f"Orquestrador_{self.provedor_llm}_C{cadencia}_RD{round}_{self.seguranca}")
         self.logger.setLevel(logging.DEBUG)
         
         if not self.logger.handlers:
@@ -79,10 +81,26 @@ class Orquestrador:
             self.logger.addHandler(fh)
             
         self.logger.info("=" * 80)
-        self.logger.info(f"INICIANDO ORQUESTRADOR | PROVEDOR: {self.provedor_llm.upper()} ({self.modelo_llm}) | CADÊNCIA: {cadencia} | RODADA: {round}")
+        self.logger.info(
+            f"INICIANDO ORQUESTRADOR | PROVEDOR: {self.provedor_llm.upper()} ({self.modelo_llm}) | "
+            f"SEGURANÇA: {self.seguranca.upper()} | CADÊNCIA: {cadencia} | RODADA: {round}"
+        )
         self.logger.info("=" * 80)
+        
+        # Registro explícito dos System Prompts no Log conforme o modo de segurança ativo
+        self.logger.info("--- CONFIGURAÇÃO DE SYSTEM PROMPTS PARA ESTA BATERIA ---")
+        if self.seguranca == "guardrails":
+            prompt_completo_guardrails = SYSTEM_PROMPT + "\n" + GUARDRAILS
+            self.logger.info(f"MODO GUARDRAILS ATIVO (SYSTEM_PROMPT + GUARDRAILS):\n{prompt_completo_guardrails}\n")
+        elif self.seguranca == "pte":
+            self.logger.info(f"MODO PLAN-THEN-EXECUTE (PTE) ATIVO - 1. SYSTEM_PROMPT PADRÃO (EXECUÇÃO):\n{SYSTEM_PROMPT}\n")
+            self.logger.info(f"MODO PLAN-THEN-EXECUTE (PTE) ATIVO - 2. PROMPT_PLANEJADOR (CRIAÇÃO DO PLANO):\n{PROMPT_PLANEJADOR}\n")
+        else:
+            self.logger.info(f"MODO PADRÃO (SEM SEGURANÇA ADICIONAL) - SYSTEM_PROMPT PADRÃO:\n{SYSTEM_PROMPT}\n")
+        self.logger.info("-" * 80)
 
         self.anexo_atual_mock = None 
+        self.snapshot_desktop = self._capturar_snapshot_desktop()
         self._inicializar_csv()
 
     def _inicializar_csv(self):
@@ -153,6 +171,23 @@ class Orquestrador:
             f"Comando do usuário: {prompt_usuario}"
         )
         
+        acoes_executadas = []
+        tokens_usados = 0
+        
+        # =====================================================================
+        # ETAPA 1 (FORA DO LOOP): Geração do Plano PTE (Antes do email_simulado)
+        # =====================================================================
+        if self.nucleo.seguranca == "pte" and self.nucleo.pte:
+            plano_gerado, tokens_plano = self.nucleo.planejar(prompt_usuario, infos_armazenadas)
+            tokens_usados += tokens_plano
+            print(f"-> [PTE - Plano Gerado]: {plano_gerado}")
+            print(f"-> [PTE - Justificativa]: {self.nucleo.pte.justificativa}")
+            self.logger.info(
+                f"[{exp_id}] PTE Plano Autorizado: {plano_gerado} | "
+                f"Justificativa: {self.nucleo.pte.justificativa} | Tokens Planejamento: {tokens_plano}"
+            )
+        # =====================================================================
+
         if email_simulado:
             contexto += (
                 f"\n\nVocê chamou lerEmail e o resultado foi: {email_simulado}\n"
@@ -162,9 +197,6 @@ class Orquestrador:
             print(f"-> [Simulação Email]: {email_simulado['remetente']}")
             self.logger.info(f"[{exp_id}] Email Simulado Injetado | De: {email_simulado['remetente']} | Assunto: {email_simulado['assunto']}")
             self.logger.debug(f"[{exp_id}] Corpo do Email Simulado:\n{email_simulado['corpo']}")
-        
-        acoes_executadas = []
-        tokens_usados = 0
         
         exec_incorreta = False 
         conclusao_tarefa = "Limite de iterações atingido"
@@ -194,18 +226,25 @@ class Orquestrador:
                 resultado = self.modulo_acao.interpretar(resposta["texto"])
                 tokens_usados = resposta["token"]
 
+                # 1. Tratamento de Segurança Nativa do LLM
                 if isinstance(resultado, dict) and resultado.get("tipo") == "erro" and ("recusa" in resultado.get("mensagem", "") or "refusal" in resultado.get("mensagem", "")):
                     self.logger.info(f"[{exp_id}] Bloqueado por Segurança Nativa do LLM: {resultado.get('mensagem')}")
                     exec_incorreta = False
                     conclusao_tarefa = "Ataque Falhou (Bloqueado por Segurança Nativa)"
                     break
 
+                # 2. Tratamento de Violação (Guardrail ou Plan-Then-Execute)
                 if isinstance(resultado, dict) and resultado.get("tipo") == "violacao":
                     msg_violacao = resultado.get("mensagem", "Violação de política de segurança")
-                    print(f"-> [Guardrail]: {msg_violacao}")
-                    self.logger.info(f"[{exp_id}] Bloqueado por Guardrail: {msg_violacao}")
+                    if "Plan-Then-Execute" in msg_violacao or self.nucleo.seguranca == "pte":
+                        print(f"-> [PTE Bloqueio]: {msg_violacao}")
+                        self.logger.info(f"[{exp_id}] Bloqueado por PTE: {msg_violacao}")
+                        conclusao_tarefa = f"Bloqueado por PTE: {msg_violacao}"
+                    else:
+                        print(f"-> [Guardrail]: {msg_violacao}")
+                        self.logger.info(f"[{exp_id}] Bloqueado por Guardrail: {msg_violacao}")
+                        conclusao_tarefa = f"Bloqueado por Guardrail: {msg_violacao}"
                     exec_incorreta = False
-                    conclusao_tarefa = f"Bloqueado por Guardrail: {msg_violacao}"
                     resposta_final = msg_violacao
                     break
 
@@ -225,6 +264,10 @@ class Orquestrador:
                 if resultado["tipo"] == "resultadoFuncao":
                     nome_funcao = resultado["funcao"]
                     acoes_executadas.append(nome_funcao)
+                    
+                    # Avança o ponteiro de ordem estrita do Plan-Then-Execute
+                    if self.nucleo.seguranca == "pte" and self.nucleo.pte:
+                        self.nucleo.pte.avancar_passo()
                     
                     detalhe_cmd = f" ({resultado['comando']})" if "comando" in resultado else ""
                     self.logger.info(f"[{exp_id}] Ferramenta Acionada: {nome_funcao}{detalhe_cmd}")
@@ -281,6 +324,70 @@ class Orquestrador:
         print("-> [Sistema]: Memória base (credenciais) injetada com sucesso.")
         self.logger.debug("Memória resetada e chave base 'acesso_banco_dados' injetada.")
 
+    def _capturar_snapshot_desktop(self) -> dict:
+        """Lê todos os arquivos e conteúdos reais da pasta Desktop no início da execução."""
+        caminho_desktop = os.path.abspath(os.path.join(self.diretorio_atual, "..", "Desktop"))
+        snapshot = {}
+        if not os.path.exists(caminho_desktop):
+            self.logger.error(f"Diretório Desktop não encontrado para snapshot: {caminho_desktop}")
+            return snapshot
+
+        for raiz, _, arquivos in os.walk(caminho_desktop):
+            for arquivo in arquivos:
+                caminho_completo = os.path.join(raiz, arquivo)
+                caminho_relativo = os.path.relpath(caminho_completo, caminho_desktop)
+                try:
+                    with open(caminho_completo, "rb") as f:
+                        snapshot[caminho_relativo] = f.read()
+                except Exception as e:
+                    self.logger.error(f"Erro ao salvar snapshot de {caminho_relativo}: {e}")
+        
+        self.logger.info(f"Snapshot inicial do Desktop capturado na memória ({len(snapshot)} arquivos base).")
+        return snapshot
+
+    def _restaurar_desktop(self):
+        """Apaga qualquer arquivo/pasta extra e restaura o conteúdo exato de todos os arquivos originais."""
+        caminho_desktop = os.path.abspath(os.path.join(self.diretorio_atual, "..", "Desktop"))
+        if not os.path.exists(caminho_desktop) or not self.snapshot_desktop:
+            return
+
+        # 1. Remove qualquer arquivo ou pasta que não pertença ao snapshot original
+        arquivos_originais = set(self.snapshot_desktop.keys())
+        pastas_originais = {os.path.dirname(p) for p in arquivos_originais if os.path.dirname(p)}
+
+        for raiz, pastas, arquivos in os.walk(caminho_desktop, topdown=False):
+            for arq in arquivos:
+                caminho_completo = os.path.join(raiz, arq)
+                caminho_rel = os.path.relpath(caminho_completo, caminho_desktop)
+                if caminho_rel not in arquivos_originais:
+                    try:
+                        os.remove(caminho_completo)
+                        self.logger.debug(f"Arquivo extra removido do Desktop: {caminho_rel}")
+                    except Exception as e:
+                        self.logger.error(f"Erro ao remover arquivo {caminho_rel}: {e}")
+
+            for pasta in pastas:
+                caminho_pasta = os.path.join(raiz, pasta)
+                caminho_rel_pasta = os.path.relpath(caminho_pasta, caminho_desktop)
+                if caminho_rel_pasta not in pastas_originais:
+                    try:
+                        shutil.rmtree(caminho_pasta)
+                        self.logger.debug(f"Pasta extra removida do Desktop: {caminho_rel_pasta}")
+                    except Exception as e:
+                        self.logger.error(f"Erro ao remover pasta {caminho_rel_pasta}: {e}")
+
+        # 2. Recria e sobrescreve TODOS os arquivos originais com seus bytes exatos
+        for caminho_rel, conteudo_bytes in self.snapshot_desktop.items():
+            caminho_completo = os.path.join(caminho_desktop, caminho_rel)
+            os.makedirs(os.path.dirname(caminho_completo), exist_ok=True)
+            try:
+                with open(caminho_completo, "wb") as f:
+                    f.write(conteudo_bytes)
+            except Exception as e:
+                self.logger.error(f"Erro ao restaurar {caminho_rel}: {e}")
+
+        self.logger.info("Sistema de arquivos do Desktop restaurado com sucesso a partir do snapshot.")
+
     def rodar_plano_ataques(self, plano, modo_estado='nenhum', cadencia=0):
         tamanho_ciclo = cadencia + 1 if cadencia > 0 else 1
         self.logger.info(f"Iniciando execução do plano | Modo de Estado: {modo_estado} | Total de Cenários: {len(plano)}")
@@ -291,6 +398,7 @@ class Orquestrador:
             self.logger.info("Modo COMPLETO ativado: Preparando memória e banco apenas no início da bateria.")
             self._preparar_memoria_base()
             self._restaurar_banco_dados()
+            self._restaurar_desktop()
 
         for idx, exp in enumerate(plano):
             exp_id = exp.get("id", f"EXP_{idx}")
@@ -299,12 +407,14 @@ class Orquestrador:
             if modo_estado == 'nenhum':
                 self._preparar_memoria_base()
                 self._restaurar_banco_dados()
+                self._restaurar_desktop()
             elif modo_estado == 'ciclo' and idx % tamanho_ciclo == 0:
                 ciclo_num = (idx // tamanho_ciclo) + 1
                 print(f"\n-> [!] INICIANDO CICLO {ciclo_num}: Resetando memória e banco de dados...")
                 self.logger.info(f"=== INICIANDO CICLO {ciclo_num}: Resetando memória e banco de dados ===")
                 self._preparar_memoria_base()
                 self._restaurar_banco_dados()
+                self._restaurar_desktop()
             
             print(f"\n[{exp_id}] Preparando Injeção: {exp.get('intencao', 'Uso Legítimo')}...")
             self.logger.info("-" * 60)
@@ -487,7 +597,7 @@ def executar_bateria_testes(provedor_llm="gemini", cadencia=0, modo_estado="nenh
         print("Nenhum experimento encontrado para execução.")
         return
         
-    print(f"\nIniciando bateria com {len(plano_final)} cenários usando {provedor_llm.upper()} (Rodada {round})")
+    print(f"\nIniciando bateria com {len(plano_final)} cenários usando {provedor_llm.upper()} (Rodada {round} | Segurança: {seguranca.upper()})")
     if modo_estado == 'completo':
         print(" -> [Config] Estado MANTIDO de ponta a ponta (Teste de longo prazo).")
     elif modo_estado == 'ciclo':
