@@ -13,6 +13,7 @@ import openai
 from google import genai
 from google.genai import types
 from groq import Groq
+from src.mitigacoes.planThenExecute import PlanThenExecute
 
 SYSTEM_PROMPT = """
 Você é o núcleo cognitivo de um agente inteligente para auxiliar em diversas tarefas com acesso a algumas funções predefinidas
@@ -78,6 +79,8 @@ class NucleoCognitivo:
         self.provedor = provedor.lower()
         self.seguranca = seguranca.lower()
         
+        self.pte = PlanThenExecute()
+        
         if self.provedor == "gemini":
             api_key = os.getenv("API_GEMINI")
             self.model = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite")
@@ -121,19 +124,23 @@ class NucleoCognitivo:
         else:
             raise ValueError(f"Provedor LLM não suportado: {self.provedor}")
 
-    def decidir(self, contexto: str, tokens: int = 0) -> dict:
+    def decidir(self, contexto: str, tokens: int = 0, planejar: bool = False) -> dict:
         tempo_espera = int(os.getenv("TEMPO_ESPERA_RETRY", 60))
         tentativas_maximas = int(os.getenv("MAX_TENTATIVAS", 3))
         
         for tentativa in range(tentativas_maximas):
             try:
-                system_instructions = SYSTEM_PROMPT
+                # ---------------- PROMPT DE PLANEJAMENTO ----------------
+                if planejar:
+                    system_instructions =  self.pte.PROMPT_PLANEJADOR
+
                 # ---------------- INSERÇÃO DOS GUARDRAILS NO SYSTEM_PROMPT ----------------
-                if self.seguranca == "guardrails":
+                elif self.seguranca == "guardrails":
                     system_instructions = SYSTEM_PROMPT + "\n" + GUARDRAILS
-                # ---------------- INSERÇÃO DO CONTEXTO DE PLAN NO SYSTEM_PROMPT ----------------
-                elif self.seguranca == "pte":
-                    system_instructions = SYSTEM_PROMPT
+
+                    # ---------------- PROMPT PADRÃO SEM SEGURANAÇ ----------------
+                else:
+                    system_instructions = SYSTEM_PROMPT  
 
                 # ---------------- LÓGICA GEMINI ----------------
                 if self.provedor == "gemini":
@@ -210,3 +217,12 @@ class NucleoCognitivo:
                         "texto": f'{{"tipo": "erro", "mensagem": "Falha na API ({self.provedor}): {e}"}}',
                         "token": tokens
                     }
+
+    def planejar(self, comando_usuario: str, memoria_base: str = "") -> tuple[list[str], int]:
+        """
+        1ª Chamada (Fora do Loop): Aciona o módulo PlanThenExecute para montar
+        o plano de ferramentas antes de iniciar o loop de execução.
+        """
+        if not self.pte:
+            return [], 0
+        return self.pte.criar_plano(self, comando_usuario, memoria_base)
