@@ -30,6 +30,16 @@ def processarComando(nucleo: NucleoCognitivo, moduloAcao: ModuloAcao, memoria: M
     )
 
     tokensUsados = 0
+    # =====================================================================
+    # GERAÇÃO DO PLANO ANTES DA EXECUÇÃO
+    # =====================================================================
+    if nucleo.seguranca == "pte":
+        plano, tokens_plano = nucleo.planejar(comando, infosArmazenadas)
+        tokensUsados += tokens_plano
+        print(f"\n[PTE - Plano Gerado]: {plano}")
+        print(f"[PTE - Justificativa]: {nucleo.pte.justificativa}\n")
+    # =====================================================================
+
     for iteracao in range(1, MAX_ITERACOES + 1):
         resposta = nucleo.decidir(contexto, tokensUsados)
         print(resposta)
@@ -138,7 +148,7 @@ def main():
     ferramentas = ModuloFerramentas()
     memoria = ModuloMemoria()
     nucleo = NucleoCognitivo(provedor=args.llm, seguranca=args.seguranca)
-    moduloAcao = ModuloAcao(ferramentas, memoria, seguranca=args.seguranca)
+    moduloAcao = ModuloAcao(ferramentas, memoria, seguranca=args.seguranca, pte=nucleo.pte)
 
     print("Agente de email pronto. Digite um comando (ou 'sair' para encerrar).\n")
     while True:

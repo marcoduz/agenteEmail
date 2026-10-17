@@ -27,10 +27,11 @@ CAMINHO_TERMINAL = "/mnt/c/Users/marco/Desktop/uffs/fase8/TCC2/agenteEmail/Deskt
 
 
 class ModuloAcao:
-    def __init__(self, ferramentas, memoria, seguranca="nenhum"):
+    def __init__(self, ferramentas, memoria, seguranca="nenhum", pte=None):
         self.ferramentas = ferramentas
         self.memoria = memoria
         self.seguranca = seguranca.lower()
+        self.pte = pte
 
     @staticmethod
     def _limpar_resposta(texto: str) -> str:
@@ -69,6 +70,13 @@ class ModuloAcao:
             argumentos = dados.get("argumentos", {})
             return self._rodarComandoTerminal({"comando": argumentos.get("comando", "")})
 
+        # Validação do Plan-Then-Execute (PTE)
+        if self.seguranca == "pte" and self.pte is not None:
+            if tipo in ["comandoTerminal", "chamadaFuncao"]:
+                violacao = self.pte.validar_acao(tipo, dados.get("funcao"))
+                if violacao:
+                    return violacao
+                
         if tipo == "comandoTerminal":
             return self._rodarComandoTerminal(dados)
         elif tipo == "chamadaFuncao":
